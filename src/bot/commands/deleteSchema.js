@@ -9,7 +9,7 @@ module.exports = {
     const data = await testSchema.find();
 
     await data.forEach(async (d) => {
-      await testSchema.findByIdAndDelete({ name: d.name });
+      await testSchema.findByIdAndDelete(d._id);
     });
     await interaction.reply({ content: `Deleted all test schema` });
   },
