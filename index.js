@@ -3,8 +3,11 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 const connectDB = require("./src/db");
+const app = express()
 
 connectDB();
+
+
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -43,3 +46,15 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
+
+app.post('/', (req, res) => {
+
+  
+  res.json({ message: 'Hello World' })
+
+})
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000')
+})
