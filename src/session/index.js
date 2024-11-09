@@ -14,6 +14,7 @@ class SessionManager {
   constructor() {
     // Cache active sessions for quick access
     this.activeSessionsCache = new Map();
+    this.categoryName = "Turing Tests";
   }
 
   async createSession(interaction, options) {
@@ -67,6 +68,22 @@ class SessionManager {
       throw error;
     }
   }
+
+  async getOrCreateCategory(guild) {
+    let category = guild.channels.cache.find(
+        channel => channel.type === ChannelType.GuildCategory &&
+                  channel.name === this.categoryName
+    );
+
+    if (!category) {
+        category = await guild.channels.create({
+            name: this.categoryName,
+            type: ChannelType.GuildCategory
+        });
+    }
+
+    return category;
+}
 
   async listAvailableSessions(interaction) {
     try {
@@ -157,21 +174,21 @@ class SessionManager {
     }
   }
 
-  assignRoles(session) {
-    const participants = [...session.participants];
-    // Shuffle participants
-    for (let i = participants.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [participants[i], participants[j]] = [participants[j], participants[i]];
-    }
+  // assignRoles(session) {
+  //   const participants = [...session.participants];
+  //   // Shuffle participants
+  //   for (let i = participants.length - 1; i > 0; i--) {
+  //     const j = Math.floor(Math.random() * (i + 1));
+  //     [participants[i], participants[j]] = [participants[j], participants[i]];
+  //   }
 
-    // Assign roles
-    participants.forEach((participant, index) => {
-      participant.role = index < participants.length / 2 ? "human" : "ai";
-    });
+  //   // Assign roles
+  //   participants.forEach((participant, index) => {
+  //     participant.role = index < participants.length / 2 ? "human" : "ai";
+  //   });
 
-    session.participants = participants;
-  }
+  //   session.participants = participants;
+  // }
 }
 
 // Slash Commands Implementation
