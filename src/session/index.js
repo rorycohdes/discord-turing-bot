@@ -1,3 +1,5 @@
+const { SlashCommandBuilder } = require("discord.js");
+
 /*
 
 I want to be able to create multiple sessions simultaneously
@@ -18,6 +20,9 @@ class SessionManager {
   }
 
   async createSession(interaction, options) {
+    /**
+     * It would be good to use typescript right here so I know the shape of the options object
+     */
     const { duration, maxParticipants = 2, sessionType = "1v1" } = options;
 
     try {
@@ -71,19 +76,20 @@ class SessionManager {
 
   async getOrCreateCategory(guild) {
     let category = guild.channels.cache.find(
-        channel => channel.type === ChannelType.GuildCategory &&
-                  channel.name === this.categoryName
+      (channel) =>
+        channel.type === ChannelType.GuildCategory &&
+        channel.name === this.categoryName
     );
 
     if (!category) {
-        category = await guild.channels.create({
-            name: this.categoryName,
-            type: ChannelType.GuildCategory
-        });
+      category = await guild.channels.create({
+        name: this.categoryName,
+        type: ChannelType.GuildCategory,
+      });
     }
 
     return category;
-}
+  }
 
   async listAvailableSessions(interaction) {
     try {
@@ -283,3 +289,5 @@ module.exports = {
     }
   },
 };
+
+module.exports = SessionManager;
