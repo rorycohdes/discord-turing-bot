@@ -1,5 +1,3 @@
-const { SlashCommandBuilder } = require("discord.js");
-
 /*
 
 I want to be able to create multiple sessions simultaneously
@@ -11,46 +9,52 @@ Bonus:
 Session discovery
 
 */
+const {
+  ChannelType,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+  ThreadAutoArchiveDuration,
+} = require("discord.js");
 
 class SessionManager {
   constructor() {
-    // Cache active sessions for quick access
     this.activeSessionsCache = new Map();
     this.categoryName = "Turing Tests";
   }
 
   async createSession(interaction, options) {
-    /**
-     * It would be good to use typescript right here so I know the shape of the options object
-     */
     const { duration, maxParticipants = 2, sessionType = "1v1" } = options;
 
     try {
-      // Create a session category if it doesn't exist
-      let category = await this.getOrCreateCategory(interaction.guild);
+      // Get or create category
+      const category = await this.getOrCreateCategory(interaction.guild);
 
-      // Create a unique session identifier
-      const sessionId = `session-${Date.now()}-${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-
-      // Create thread for the session
-      const { thread, parentMessage } = await this.createSessionThread(
+      // Get or create the main channel
+      const mainChannel = await this.getOrCreateMainChannel(
         interaction.guild,
-        category,
-        sessionId,
-        duration
+        category
       );
+
+      // Create thread
+      const thread = await mainChannel.threads.create({
+        name: `test-${Date.now()}`,
+        type: ChannelType.PublicThread,
+      });
+
+      // Set initial permissions
+      await thread.members.add(interaction.user.id);
 
       // Create session in database
       const session = await Session.create({
-        sessionId,
+        sessionId: thread.id, // Using thread ID as session ID for simplicity
         threadId: thread.id,
+        channelId: mainChannel.id,
         creatorId: interaction.user.id,
         duration,
         maxParticipants,
         sessionType,
         startTime: new Date(),
+        status: "waiting",
         participants: [
           {
             userId: interaction.user.id,
@@ -61,10 +65,21 @@ class SessionManager {
       });
 
       // Cache the session
-      this.activeSessionsCache.set(sessionId, {
+      this.activeSessionsCache.set(thread.id, {
         thread,
-        parentMessage,
+        channel: mainChannel,
         session,
+      });
+
+      // Send initial message
+      await thread.send({
+        embeds: [
+          {
+            title: "Turing Test Session Started",
+            description: `Duration: ${duration} minutes\nParticipants: 1/${maxParticipants}`,
+            color: 0x00ff00,
+          },
+        ],
       });
 
       return { thread, session };
@@ -74,44 +89,27 @@ class SessionManager {
     }
   }
 
-  async getOrCreateCategory(guild) {
-    let category = guild.channels.cache.find(
-      (channel) =>
-        channel.type === ChannelType.GuildCategory &&
-        channel.name === this.categoryName
+  async getOrCreateMainChannel(guild, category) {
+    let channel = guild.channels.cache.find(
+      (ch) => ch.parent?.id === category.id && ch.name === "turing-tests"
     );
 
-    if (!category) {
-      category = await guild.channels.create({
-        name: this.categoryName,
-        type: ChannelType.GuildCategory,
+    if (!channel) {
+      channel = await guild.channels.create({
+        name: "turing-tests",
+        type: ChannelType.GuildText,
+        parent: category,
+        permissionOverwrites: [
+          {
+            id: guild.id,
+            allow: [PermissionFlagsBits.ViewChannel],
+            deny: [PermissionFlagsBits.SendMessages],
+          },
+        ],
       });
     }
 
-    return category;
-  }
-
-  async listAvailableSessions(interaction) {
-    try {
-      const availableSessions = await Session.find({
-        status: "waiting",
-        "participants.0": { $exists: true },
-        "participants.1": { $exists: false },
-      }).sort({ startTime: -1 });
-
-      return availableSessions.map((session) => ({
-        id: session.sessionId,
-        creator:
-          interaction.guild.members.cache.get(session.creatorId)?.user
-            .username || "Unknown",
-        duration: session.duration,
-        type: session.sessionType,
-        participants: `${session.participants.length}/${session.maxParticipants}`,
-      }));
-    } catch (error) {
-      console.error("Error listing sessions:", error);
-      throw error;
-    }
+    return channel;
   }
 
   async joinSession(interaction, sessionId = null) {
@@ -180,21 +178,40 @@ class SessionManager {
     }
   }
 
-  // assignRoles(session) {
-  //   const participants = [...session.participants];
-  //   // Shuffle participants
-  //   for (let i = participants.length - 1; i > 0; i--) {
-  //     const j = Math.floor(Math.random() * (i + 1));
-  //     [participants[i], participants[j]] = [participants[j], participants[i]];
-  //   }
+  getSession(sessionId) {
+    return this.activeSessionsCache.get(sessionId);
+  }
 
-  //   // Assign roles
-  //   participants.forEach((participant, index) => {
-  //     participant.role = index < participants.length / 2 ? "human" : "ai";
-  //   });
+  async getAllActiveSessions(guild) {
+    return Array.from(this.activeSessionsCache.values()).filter(
+      (sessionData) => sessionData.thread.guildId === guild.id
+    );
+  }
 
-  //   session.participants = participants;
-  // }
+  async getOrCreateCategory(guild) {
+    let category = guild.channels.cache.find(
+      (channel) =>
+        channel.type === ChannelType.GuildCategory &&
+        channel.name === this.categoryName
+    );
+
+    if (!category) {
+      category = await guild.channels.create({
+        name: this.categoryName,
+        type: ChannelType.GuildCategory,
+      });
+    }
+
+    return category;
+  }
+
+  getRemainingTime(channelId) {
+    const session = this.getSession(channelId);
+    if (!session) return 0;
+
+    const remaining = session.endTime - Date.now();
+    return Math.max(0, remaining);
+  }
 }
 
 // Slash Commands Implementation

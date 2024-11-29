@@ -4,55 +4,41 @@ class TuringTestManager {
   constructor(client) {
     this.client = client;
     this.sessionManager = new SessionManager();
-    this.testDuration = 10 * 60 * 1000; // 10 minutes
   }
 
   async startTest(interaction) {
     try {
-      // Get category using session manager
-      const category = await this.sessionManager.getOrCreateCategory(
-        interaction.guild
-      );
+      const duration = interaction.options.getInteger("duration");
 
-      // Create channel
-      const channel = await interaction.guild.channels.create({
-        name: `test-${Date.now()}`,
-        type: ChannelType.GuildText,
-        parent: category,
-      });
-
-      // Create session using session manager
-      const session = await this.sessionManager.createSession(
-        channel,
-        interaction.user
+      // Create session with proper options
+      const { thread, session } = await this.sessionManager.createSession(
+        interaction,
+        { duration }
       );
 
       // Set up auto-cleanup
-      setTimeout(() => this.endTest(channel.id), this.testDuration);
+      setTimeout(() => this.endTest(thread.id), duration * 60 * 1000);
 
-      return session;
+      return {
+        threadId: thread.id,
+        channelId: thread.parentId,
+        duration,
+      };
     } catch (error) {
       console.error("Error starting test:", error);
       throw error;
     }
   }
 
-  async addParticipant(channelId, userId) {
-    const session = this.sessionManager.getSession(channelId);
-    if (!session || !session.isActive) return false;
-
-    session.participants.add(userId);
-    return true;
-  }
-
-  async endTest(channelId) {
+  async endTest(threadId) {
     try {
-      const session = await this.sessionManager.endSession(channelId);
-      if (session) {
-        const channel = await this.client.channels.fetch(channelId);
-        if (channel) {
-          await channel.delete();
-        }
+      const sessionData = this.sessionManager.getSession(threadId);
+      if (sessionData) {
+        const { thread, session } = sessionData;
+        await thread.setLocked(true);
+        session.status = "completed";
+        await session.save();
+        this.sessionManager.activeSessionsCache.delete(threadId);
       }
       return true;
     } catch (error) {
@@ -61,5 +47,4 @@ class TuringTestManager {
     }
   }
 }
-
 module.exports = TuringTestManager;

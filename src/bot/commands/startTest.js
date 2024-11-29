@@ -1,4 +1,5 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, Client } = require("discord.js");
+//const turingTestManager = require("../../game/TuringTestManager");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -13,16 +14,17 @@ module.exports = {
         .setMaxValue(30)
     ),
 
-  async execute(interaction, turingManager) {
+  async execute(interaction) {
     try {
-      const duration = interaction.options.getInteger("duration");
-      const session = await turingManager.startTest(interaction, duration);
+      // Access the manager through the client
+      const manager = interaction.client.turingManager;
+      const result = await manager.startTest(interaction);
 
       await interaction.reply({
         embeds: [
           {
             title: "Test Session Created",
-            description: `Channel: <#${session.channelId}>\nDuration: ${duration} minutes`,
+            description: `Thread: <#${result.threadId}>\nDuration: ${result.duration} minutes`,
             color: 0x00ff00,
           },
         ],
@@ -30,10 +32,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error in start-test command:", error);
-      await interaction.reply({
-        content: `Failed to start test: ${error.message}`,
-        ephemeral: true,
-      });
+      throw error; // Main error handler will catch this
     }
   },
 };
