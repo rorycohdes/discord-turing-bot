@@ -54,9 +54,28 @@ for (const file of commandFiles) {
 }
 
 // Discord event handlers
-client.once("ready", () => {
+client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
   console.log("Loaded commands:", Array.from(client.commands.keys()));
+
+  // Initialize Turing Test channels
+  const guild = client.guilds.cache.first(); // Or specify a specific guild
+  if (guild) {
+    await client.sessionManager.initializeChannels(guild);
+
+    // Ensure results channel exists
+    let resultsChannel = guild.channels.cache.find(
+      (ch) => ch.name === "turing-test-results"
+    );
+    if (!resultsChannel) {
+      const category = await client.sessionManager.getOrCreateCategory(guild);
+      resultsChannel = await guild.channels.create({
+        name: "turing-test-results",
+        type: ChannelType.GuildText,
+        parent: category,
+      });
+    }
+  }
 });
 
 // Command handling
