@@ -1,4 +1,26 @@
 const SessionManager = require("../session");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const {
+  uniqueNamesGenerator,
+  adjectives,
+  nouns,
+} = require("unique-names-generator");
+
+const usedNicknames = new Set();
+
+function generateUniqueNickname() {
+  let nickname;
+  do {
+    nickname = uniqueNamesGenerator({
+      dictionaries: [adjectives, nouns],
+      separator: "",
+      length: 2,
+    });
+  } while (usedNicknames.has(nickname));
+
+  usedNicknames.add(nickname);
+  return nickname;
+}
 
 class TuringTestManager {
   constructor(client) {
@@ -16,10 +38,48 @@ class TuringTestManager {
         interaction,
         {
           duration,
-          maxParticipants: 2,
-          sessionType: "1v1",
+          maxParticipants: 3, // Now including a judge
+          sessionType: "1v1-with-judge",
         }
       );
+
+      // Assign unique nicknames to participants
+      const participants = session.participants.map((p) => ({
+        ...p,
+        nickname: generateUniqueNickname(),
+      }));
+
+      // Apply nicknames
+      for (const participant of participants) {
+        try {
+          await interaction.guild.members
+            .fetch(participant.userId)
+            .then((member) => member.setNickname(participant.nickname));
+        } catch (nicknameError) {
+          console.error(
+            `Could not set nickname for ${participant.userId}:`,
+            nicknameError
+          );
+        }
+      }
+
+      // Create judge voting buttons
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`judge_vote:${participants[0].userId}`)
+          .setLabel(participants[0].nickname)
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`judge_vote:${participants[1].userId}`)
+          .setLabel(participants[1].nickname)
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      // Send voting message
+      await channel.send({
+        content: "Judge, please determine which participant is the AI:",
+        components: [row],
+      });
 
       // Set up auto-cleanup
       setTimeout(() => this.endTest(channel.id), duration * 60 * 1000);
@@ -27,11 +87,27 @@ class TuringTestManager {
       return {
         channelId: channel.id,
         duration,
+        participants,
       };
     } catch (error) {
       console.error("Error starting test:", error);
       throw error;
     }
+  }
+
+  async handleJudgeVote(interaction) {
+    const [, votedUserId] = interaction.customId.split(":");
+
+    // Store the vote
+    this.judgeVotes.set(interaction.user.id, votedUserId);
+
+    // Acknowledge the vote
+    await interaction.reply({
+      content: `You've voted that ${
+        interaction.guild.members.cache.get(votedUserId).displayName
+      } is the AI.`,
+      ephemeral: true,
+    });
   }
 
   async endTest(channelId) {
@@ -45,13 +121,29 @@ class TuringTestManager {
         const archivedMessages =
           await this.sessionManager.clearChannelForNewSession(channel);
 
-        // Find results channel
-        const resultsChannel = channel.guild.channels.cache.find(
-          (ch) => ch.name === "turing-test-results"
-        );
+        // Remove nicknames
+        for (const participant of session.participants) {
+          try {
+            await channel.guild.members
+              .fetch(participant.userId)
+              .then((member) => member.setNickname(null));
+          } catch (error) {
+            console.error(
+              `Could not reset nickname for ${participant.userId}:`,
+              error
+            );
+          }
+        }
 
-        // Determine judge's conclusion (placeholder logic)
+        // Determine judge's conclusion
         const judgeConclusion = this.determineJudgeConclusion(session);
+
+        // Find results announcement channel
+        const resultsChannel = channel.guild.channels.cache.find(
+          (ch) =>
+            ch.name === "turing-test-results" &&
+            ch.type === ChannelType.GuildAnnouncement
+        );
 
         if (resultsChannel) {
           await resultsChannel.send({
@@ -83,19 +175,12 @@ class TuringTestManager {
           });
         }
 
-        // Lock the channel
-        await channel.permissionOverwrites.edit(channel.guild.id, {
-          SendMessages: false,
-        });
-
         // Mark session as completed
         session.status = "completed";
         await session.save();
 
         // Release the channel back to available channels
         this.sessionManager.releaseChannel(channelId);
-
-        // Remove from active sessions
         this.sessionManager.activeSessionsCache.delete(channelId);
       }
       return true;
@@ -106,10 +191,14 @@ class TuringTestManager {
   }
 
   determineJudgeConclusion(session) {
-    // Placeholder logic for judge's determination
+    // Use the stored judge votes to determine correctness
+    const votes = Array.from(this.judgeVotes.values());
+    const aiParticipant = session.participants.find((p) => p.role === "ai");
+
+    // If judge voted for the AI's user ID, they were correct
     return {
-      correct: Math.random() > 0.5,
-      reasoning: "Random determination for demonstration",
+      correct: votes.includes(aiParticipant.userId),
+      reasoning: "Based on judge's button selection",
     };
   }
 }

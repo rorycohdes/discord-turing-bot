@@ -21,8 +21,10 @@ const sessionSchema = new mongoose.Schema({
       userId: String,
       role: {
         type: String,
-        enum: ["human", "ai", "unknown"],
+        enum: ["human", "ai", "judge"],
+        required: true,
       },
+      nickname: String,
       joinedAt: Date,
     },
   ],

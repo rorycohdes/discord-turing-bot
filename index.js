@@ -117,6 +117,20 @@ client.on("interactionCreate", async (interaction) => {
       console.error("Error sending error message:", followUpError);
     }
   }
+
+  if (interaction.isButton()) {
+    if (interaction.customId.startsWith("judge_vote:")) {
+      try {
+        await interaction.client.turingManager.handleJudgeVote(interaction);
+      } catch (error) {
+        console.error("Error handling judge vote:", error);
+        await interaction.reply({
+          content: "There was an error processing your vote.",
+          ephemeral: true,
+        });
+      }
+    }
+  }
 });
 
 // Error handling
