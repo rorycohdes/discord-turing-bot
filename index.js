@@ -63,15 +63,18 @@ client.once("ready", async () => {
   if (guild) {
     await client.sessionManager.initializeChannels(guild);
 
-    // Ensure results channel exists
+    // Ensure results announcement channel exists
     let resultsChannel = guild.channels.cache.find(
-      (ch) => ch.name === "turing-test-results"
+      (ch) =>
+        ch.name === "turing-test-results" &&
+        ch.type === ChannelType.GuildAnnouncement
     );
+
     if (!resultsChannel) {
       const category = await client.sessionManager.getOrCreateCategory(guild);
       resultsChannel = await guild.channels.create({
         name: "turing-test-results",
-        type: ChannelType.GuildText,
+        type: ChannelType.GuildAnnouncement,
         parent: category,
       });
     }
