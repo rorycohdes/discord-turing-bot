@@ -138,9 +138,36 @@ client.on("error", (error) => {
   console.error("Discord client error:", error);
 });
 
+// Message listener
+client.on("messageCreate", async (message) => {
+  // Ignore messages from the bot itself or if the user is not the target
+  if (message.author.bot || message.author.id !== TARGET_USER_ID) return;
+
+  // Get Ollama response
+  const prompt = `User: ${message.content}`;
+  const reply = await getOllamaResponse(prompt);
+
+  // Send reply to the same channel
+  message.channel.send(reply);
+});
+
 process.on("unhandledRejection", (error) => {
   console.error("Unhandled promise rejection:", error);
 });
+
+let targetUserId = null; // Initialize without a target user
+
+// Function to call Ollama's API
+async function getOllamaResponse(prompt) {
+  const response = await fetch("http://localhost:11400/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const data = await response.json();
+  return data?.response || "Something went wrong.";
+}
 
 // Express routes
 app.get("/status", (req, res) => {

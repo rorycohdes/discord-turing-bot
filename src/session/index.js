@@ -99,6 +99,31 @@ class SessionManager {
   }
 
   // Existing methods like getOrCreateCategory remain the same
+
+  async getOrCreateCategory(guild) {
+    let category = guild.channels.cache.find(
+      (channel) =>
+        channel.type === ChannelType.GuildCategory &&
+        channel.name === this.categoryName
+    );
+
+    if (!category) {
+      category = await guild.channels.create({
+        name: this.categoryName,
+        type: ChannelType.GuildCategory,
+      });
+    }
+
+    return category;
+  }
+
+  getRemainingTime(channelId) {
+    const session = this.getSession(channelId);
+    if (!session) return 0;
+
+    const remaining = session.endTime - Date.now();
+    return Math.max(0, remaining);
+  }
 }
 
 module.exports = SessionManager;
