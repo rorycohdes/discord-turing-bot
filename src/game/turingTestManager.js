@@ -49,7 +49,14 @@ class TuringTestManager {
         nickname: generateUniqueNickname(),
       }));
 
-      // Apply nicknames
+      // Randomly assign roles
+      const roles = ["judge", "human"];
+      for (const participant of participants) {
+        const roleIndex = Math.floor(Math.random() * roles.length);
+        participant.role = roles.splice(roleIndex, 1)[0];
+      }
+
+      // Apply nicknames and roles
       for (const participant of participants) {
         try {
           await interaction.guild.members
@@ -61,8 +68,12 @@ class TuringTestManager {
             nicknameError
           );
         }
-      }
 
+        // Assign the "judge" role to the judge
+        if (participant.role === "judge") {
+          this.sessionManager.assignRole(participant.userId, "judge");
+        }
+      }
       // Create judge voting buttons
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -117,7 +128,7 @@ class TuringTestManager {
       if (sessionData) {
         const { channel, session } = sessionData;
 
-        // Capture archived messages
+        // Capture archived messagesK
         const archivedMessages =
           await this.sessionManager.clearChannelForNewSession(channel);
 

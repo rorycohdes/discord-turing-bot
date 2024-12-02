@@ -10,6 +10,24 @@ class SessionManager {
     this.categoryName = "Turing Tests";
     this.totalChannels = 5;
     this.availableChannels = new Set();
+    this.customRoles = new Map();
+  }
+
+  assignRole(userId, role) {
+    if (!this.customRoles.has(role)) {
+      this.customRoles.set(role, new Set());
+    }
+    this.customRoles.get(role).add(userId);
+  }
+
+  hasRole(userId, role) {
+    return this.customRoles.has(role) && this.customRoles.get(role).has(userId);
+  }
+
+  removeRole(userId, role) {
+    if (this.customRoles.has(role)) {
+      this.customRoles.get(role).delete(userId);
+    }
   }
 
   async initializeChannels(guild) {
