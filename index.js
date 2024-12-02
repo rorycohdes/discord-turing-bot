@@ -25,6 +25,10 @@ const client = new Client({
   ],
 });
 
+const chatBotClient = new Client({
+  intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
+});
+
 // Initialize managers
 client.sessionManager = new SessionManager();
 client.turingManager = new TuringTestManager(client);
@@ -138,24 +142,34 @@ client.on("error", (error) => {
   console.error("Discord client error:", error);
 });
 
-// Message listener
-client.on("messageCreate", async (message) => {
-  // Ignore messages from the bot itself or if the user is not the target
-  if (message.author.bot || message.author.id !== TARGET_USER_ID) return;
+// Turing Test bot message handling
+chatBotClient.on("messageCreate", async (message) => {
+  // Ignore messages from the bot itself
+  if (message.author.bot) return;
+
+  // Check if the user has the "judge" role
+  const isJudge = turingTestClient.sessionManager.hasRole(
+    message.author.id,
+    "judge"
+  );
+  if (!isJudge) return;
+
+  // Check if the message is in a Turing Test channel
+  const isTuringTestChannel =
+    turingTestClient.sessionManager.availableChannels.has(message.channel.id);
+  if (!isTuringTestChannel) return;
 
   // Get Ollama response
   const prompt = `User: ${message.content}`;
   const reply = await getOllamaResponse(prompt);
 
-  // Send reply to the same channel
+  // Send reply as Turing Test Chat-Bot
   message.channel.send(reply);
 });
 
 process.on("unhandledRejection", (error) => {
   console.error("Unhandled promise rejection:", error);
 });
-
-let targetUserId = null; // Initialize without a target user
 
 // Function to call Ollama's API
 async function getOllamaResponse(prompt) {
@@ -183,9 +197,11 @@ const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
-    // Login to Discord
-    await client.login(process.env.DISCORD_TOKEN);
-
+    // Login to Discord with each bot
+    await Promise.all([
+      generalClient.login(process.env.DISCORD_TOKEN_GENERAL),
+      turingTestClient.login(process.env.DISCORD_TOKEN_TURING_TEST),
+    ]);
     // Start Express server
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
