@@ -4,6 +4,8 @@ const {
   SlashCommandBuilder,
 } = require("discord.js");
 
+const Session = require("../models/session");
+
 class SessionManager {
   constructor() {
     this.activeSessionsCache = new Map();
@@ -11,6 +13,7 @@ class SessionManager {
     this.totalChannels = 5;
     this.availableChannels = new Set();
     this.customRoles = new Map();
+    this.queue = [];
   }
 
   assignRole(userId, role) {

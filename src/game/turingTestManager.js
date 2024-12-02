@@ -28,14 +28,14 @@ class TuringTestManager {
     this.sessionManager = new SessionManager();
   }
 
-  async startTest(interaction) {
+  async startTest(interaction, participants) {
     try {
       const duration = interaction.options.getInteger("duration");
 
       await this.sessionManager.initializeChannels(interaction.guild);
 
       const { channel, session } = await this.sessionManager.createSession(
-        interaction,
+        { guild: interaction.guild },
         {
           duration,
           maxParticipants: 3, // Now including a judge
@@ -44,10 +44,9 @@ class TuringTestManager {
       );
 
       // Assign unique nicknames to participants
-      const participants = session.participants.map((p) => ({
-        ...p,
-        nickname: generateUniqueNickname(),
-      }));
+      participants.forEach((p) => {
+        p.nickname = generateUniqueNickname();
+      });
 
       // Randomly assign roles
       const roles = ["judge", "human"];
@@ -74,6 +73,13 @@ class TuringTestManager {
           this.sessionManager.assignRole(participant.userId, "judge");
         }
       }
+
+      // Send a private DM to the participant
+      const user = await guild.members.fetch(participant.userId);
+      await user.send(
+        `You have been assigned the role of ${participant.role} in the Turing test. Please join the channel: ${channel.name}`
+      );
+
       // Create judge voting buttons
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

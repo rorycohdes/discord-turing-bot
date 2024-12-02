@@ -26,7 +26,12 @@ const client = new Client({
 });
 
 const chatBotClient = new Client({
-  intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
 });
 
 // Initialize managers
@@ -148,7 +153,7 @@ chatBotClient.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
   // Check if the user has the "judge" role
-  const isJudge = turingTestClient.sessionManager.hasRole(
+  const isJudge = chatBotClient.sessionManager.hasRole(
     message.author.id,
     "judge"
   );
@@ -156,7 +161,7 @@ chatBotClient.on("messageCreate", async (message) => {
 
   // Check if the message is in a Turing Test channel
   const isTuringTestChannel =
-    turingTestClient.sessionManager.availableChannels.has(message.channel.id);
+    chatBotClient.sessionManager.availableChannels.has(message.channel.id);
   if (!isTuringTestChannel) return;
 
   // Get Ollama response
@@ -199,8 +204,8 @@ const startServer = async () => {
   try {
     // Login to Discord with each bot
     await Promise.all([
-      generalClient.login(process.env.DISCORD_TOKEN_GENERAL),
-      turingTestClient.login(process.env.DISCORD_TOKEN_TURING_TEST),
+      client.login(process.env.DISCORD_TOKEN_GENERAL),
+      chatBotClient.login(process.env.DISCORD_TOKEN_TURING_TEST),
     ]);
     // Start Express server
     app.listen(PORT, () => {
