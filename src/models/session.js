@@ -7,14 +7,14 @@ const sessionSchema = new mongoose.Schema({
     enum: ["waiting", "active", "completed", "archived"],
     default: "waiting",
   },
-  threadId: String,
-  archiveThreadId: String,
+  channelId: String,
+  archiveChannelId: String,
   startTime: Date,
   endTime: Date,
   creatorId: String,
   maxParticipants: {
     type: Number,
-    default: 2,
+    default: 3, // Including a judge
   },
   participants: [
     {
@@ -31,9 +31,15 @@ const sessionSchema = new mongoose.Schema({
   duration: Number,
   sessionType: {
     type: String,
-    enum: ["1v1", "group"],
-    default: "1v1",
+    enum: ["1v1", "1v1-with-judge"],
+    default: "1v1-with-judge",
   },
+  judgeVotes: [
+    {
+      judgeId: String,
+      votedUserId: String,
+    },
+  ],
 });
 
 module.exports = mongoose.model("Session", sessionSchema);
