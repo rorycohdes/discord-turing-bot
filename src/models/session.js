@@ -1,4 +1,4 @@
-const mongooose = require("mongoose");
+const mongoose = require("mongoose");
 
 const sessionSchema = new mongoose.Schema({
   sessionId: String,

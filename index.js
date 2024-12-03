@@ -1,5 +1,10 @@
 // index.js
-const { Client, GatewayIntentBits, Collection } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  Collection,
+  ChannelType,
+} = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -87,6 +92,12 @@ client.once("ready", async () => {
         parent: category,
       });
     }
+  }
+  const botMember = guild.members.cache.get(client.user.id);
+
+  if (botMember) {
+    console.log("Bot Permissions:", botMember.permissions.toJSON());
+    console.log("Permission Integer:", botMember.permissions.bitfield);
   }
 });
 
