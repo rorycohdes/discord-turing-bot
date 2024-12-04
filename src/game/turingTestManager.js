@@ -26,11 +26,12 @@ class TuringTestManager {
   constructor(client) {
     this.client = client;
     this.sessionManager = new SessionManager();
+    this.judgeVotes = new Map();
   }
 
   async startTest(interaction, participants) {
     try {
-      const duration = interaction.options.getInteger("duration");
+      const duration = 10;
 
       await this.sessionManager.initializeChannels(interaction.guild);
 
@@ -101,7 +102,7 @@ class TuringTestManager {
       });
 
       // Set up auto-cleanup
-      setTimeout(() => this.endTest(channel.id), duration * 60 * 1000);
+      setTimeout(() => this.endTest(channel.id), 10 * 60 * 1000);
 
       return {
         channelId: channel.id,
@@ -114,8 +115,8 @@ class TuringTestManager {
     }
   }
 
-  async handleJudgeVote(interaction) {
-    const [, votedUserId] = interaction.customId.split(":");
+  async handleJudgeVote(interaction, participant) {
+    const votedUserId = participant.id;
 
     // Store the vote
     this.judgeVotes.set(interaction.user.id, votedUserId);
