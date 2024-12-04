@@ -3,7 +3,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const {
   uniqueNamesGenerator,
   adjectives,
-  nouns,
+  animals,
 } = require("unique-names-generator");
 
 const usedNicknames = new Set();
@@ -12,7 +12,7 @@ function generateUniqueNickname() {
   let nickname;
   do {
     nickname = uniqueNamesGenerator({
-      dictionaries: [adjectives, nouns],
+      dictionaries: [adjectives, animals],
       separator: "",
       length: 2,
     });
@@ -34,14 +34,8 @@ class TuringTestManager {
 
       await this.sessionManager.initializeChannels(interaction.guild);
 
-      const { channel, session } = await this.sessionManager.createSession(
-        { guild: interaction.guild },
-        {
-          duration,
-          maxParticipants: 3, // Now including a judge
-          sessionType: "1v1-with-judge",
-        }
-      );
+      // Log participants before assigning nicknames
+      console.log("Participants before assigning nicknames:", participants);
 
       // Assign unique nicknames to participants
       participants.forEach((p) => {
@@ -55,6 +49,15 @@ class TuringTestManager {
         participant.role = roles.splice(roleIndex, 1)[0];
       }
 
+      const { channel, session } = await this.sessionManager.createSession(
+        interaction,
+        {
+          duration,
+          maxParticipants: 3,
+          sessionType: "1v1-with-judge",
+          participants, // Pass participants with roles
+        }
+      );
       // Apply nicknames and roles
       for (const participant of participants) {
         try {

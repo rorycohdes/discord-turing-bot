@@ -88,9 +88,23 @@ class SessionManager {
     }
 
     const channelId = Array.from(this.availableChannels)[0];
+    console.log(`Attempting to get channel with ID: ${channelId}`);
     const channel = interaction.guild.channels.cache.get(channelId);
 
+    if (!channel) {
+      console.error(`Channel with ID ${channelId} not found`);
+      throw new Error(`Channel with ID ${channelId} not found`);
+    }
+
     this.availableChannels.delete(channelId);
+
+    // Log interaction object
+    console.log("Interaction object:", interaction);
+    console.log("Interaction user object:", interaction.user);
+
+    if (!interaction.user || !interaction.user.id) {
+      throw new Error("Interaction user or user ID is undefined");
+    }
 
     const session = await Session.create({
       channelId: channel.id,
@@ -98,13 +112,7 @@ class SessionManager {
       ...options,
       startTime: new Date(),
       status: "waiting",
-      participants: [
-        {
-          userId: interaction.user.id,
-          role: "unknown",
-          joinedAt: new Date(),
-        },
-      ],
+      participants: options.participants, // Use participants from options
     });
 
     this.activeSessionsCache.set(channel.id, {
