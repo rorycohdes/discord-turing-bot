@@ -76,6 +76,14 @@ class TuringTestManager {
         if (participant.role === "judge") {
           this.sessionManager.assignRole(participant.userId, "judge");
         }
+
+        // Set channel permissions for the participant
+        await channel.permissionOverwrites.create(participant.userId, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true,
+        });
+
         // Send a private DM to the participant
         const user = await interaction.guild.members.fetch(participant.userId);
         await user.send(
@@ -102,7 +110,7 @@ class TuringTestManager {
       });
 
       // Set up auto-cleanup
-      setTimeout(() => this.endTest(channel.id), 10 * 60 * 1000);
+      setTimeout(() => this.endTest(channel.id), duration * 60 * 1000);
 
       return {
         channelId: channel.id,
@@ -141,15 +149,17 @@ class TuringTestManager {
         const archivedMessages =
           await this.sessionManager.clearChannelForNewSession(channel);
 
-        // Remove nicknames
+        // Remove nicknames and channel permissions
         for (const participant of session.participants) {
           try {
-            await channel.guild.members
-              .fetch(participant.userId)
-              .then((member) => member.setNickname(null));
+            const member = await channel.guild.members.fetch(
+              participant.userId
+            );
+            await member.setNickname(null);
+            await channel.permissionOverwrites.delete(participant.userId);
           } catch (error) {
             console.error(
-              `Could not reset nickname for ${participant.userId}:`,
+              `Could not reset nickname or permissions for ${participant.userId}:`,
               error
             );
           }
