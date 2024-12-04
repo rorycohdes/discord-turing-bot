@@ -75,13 +75,12 @@ class TuringTestManager {
         if (participant.role === "judge") {
           this.sessionManager.assignRole(participant.userId, "judge");
         }
+        // Send a private DM to the participant
+        const user = await interaction.guild.members.fetch(participant.userId);
+        await user.send(
+          `You have been assigned the role of ${participant.role} in the Turing test. Please join the channel: ${channel.name}`
+        );
       }
-
-      // Send a private DM to the participant
-      const user = await guild.members.fetch(participant.userId);
-      await user.send(
-        `You have been assigned the role of ${participant.role} in the Turing test. Please join the channel: ${channel.name}`
-      );
 
       // Create judge voting buttons
       const row = new ActionRowBuilder().addComponents(
