@@ -12,6 +12,7 @@ const connectDB = require("./src/db");
 const express = require("express");
 const TuringTestManager = require("./src/game/TuringTestManager");
 const SessionManager = require("./src/session");
+const ollama = require("ollama");
 
 // Initialize express app
 const app = express();
@@ -40,8 +41,12 @@ const chatBotClient = new Client({
   ],
 });
 
+const sessionManager = new SessionManager();
+//const turingManager = new TuringTestManager(client);
+
 // Initialize managers
-client.sessionManager = new SessionManager();
+client.sessionManager = sessionManager;
+chatBotClient.sessionManager = sessionManager;
 client.turingManager = new TuringTestManager(client);
 
 // Set up commands collection
@@ -159,45 +164,93 @@ client.on("error", (error) => {
   console.error("Discord client error:", error);
 });
 
-// Turing Test bot message handling
+chatBotClient.commands = new Collection();
+const chatBotCommandsPath = path.join(__dirname, "src/bot/commands");
+
+// Load commands for chatBotClient
+console.log("Loading commands for chatBotClient from:", chatBotCommandsPath);
+const chatBotCommandFiles = fs
+  .readdirSync(chatBotCommandsPath)
+  .filter((file) => file.endsWith(".js"));
+
+for (const file of chatBotCommandFiles) {
+  const filePath = path.join(chatBotCommandsPath, file);
+  const command = require(filePath);
+  if ("data" in command && "execute" in command) {
+    console.log(`Loading command for chatBotClient: ${command.data.name}`);
+    chatBotClient.commands.set(command.data.name, command);
+    console.log(
+      ` ${command.data.name} :${chatBotClient.commands.has(command.data.name)}`
+    );
+  } else {
+    console.log(`[WARNING] Command at ${filePath} missing required properties`);
+  }
+}
+
+chatBotClient.once("ready", async () => {
+  console.log(`Chatbot logged in as ${chatBotClient.user.tag}`);
+
+  // Optional: Perform any initialization for the chat bot
+  const guild = chatBotClient.guilds.cache.first();
+  if (guild) {
+    // Any specific setup for the chat bot
+    console.log(`Chatbot is in guild: ${guild.name}`);
+  }
+});
+
 chatBotClient.on("messageCreate", async (message) => {
   // Ignore messages from the bot itself
   if (message.author.bot) return;
+
+  console.log(
+    `Received message from ${message.author.username}: ${message.content}`
+  );
 
   // Check if the user has the "judge" role
   const isJudge = chatBotClient.sessionManager.hasRole(
     message.author.id,
     "judge"
   );
+  console.log(`Is judge: ${isJudge}`);
   if (!isJudge) return;
 
   // Check if the message is in a Turing Test channel
   const isTuringTestChannel =
     chatBotClient.sessionManager.availableChannels.has(message.channel.id);
+  console.log(`Is Turing Test channel: ${isTuringTestChannel}`);
   if (!isTuringTestChannel) return;
 
   // Get Ollama response
   const prompt = `User: ${message.content}`;
+  console.log(`Prompt: ${prompt}`);
   const reply = await getOllamaResponse(prompt);
+  console.log(`Ollama response: ${reply}`);
 
   // Send reply as Turing Test Chat-Bot
   message.channel.send(reply);
+});
+
+chatBotClient.on("error", (error) => {
+  console.error("Chatbot client error:", error);
 });
 
 process.on("unhandledRejection", (error) => {
   console.error("Unhandled promise rejection:", error);
 });
 
-// Function to call Ollama's API
+// Function to call Ollama's API using the Ollama JavaScript library
 async function getOllamaResponse(prompt) {
-  const response = await fetch("http://localhost:11400/api/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-
-  const data = await response.json();
-  return data?.response || "Something went wrong.";
+  try {
+    const response = await ollama.chat({
+      model: "llama3.1",
+      messages: [{ role: "user", content: prompt }],
+    });
+    console.log("Ollama API response:", response);
+    return response?.data?.response || "Something went wrong.";
+  } catch (error) {
+    console.error("Error calling Ollama API:", error);
+    return "Something went wrong.";
+  }
 }
 
 // Express routes
@@ -216,8 +269,8 @@ const startServer = async () => {
   try {
     // Login to Discord with each bot
     await Promise.all([
-      client.login(process.env.DISCORD_TOKEN_GENERAL),
-      chatBotClient.login(process.env.DISCORD_TOKEN_TURING_TEST),
+      client.login(process.env.DISCORD_TOKEN),
+      chatBotClient.login(process.env.DISCORD_TOKEN_TURING_TEST_CHANNEL),
     ]);
     // Start Express server
     app.listen(PORT, () => {

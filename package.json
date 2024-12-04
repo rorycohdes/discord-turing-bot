@@ -5,6 +5,7 @@
     "express": "^4.21.1",
     "mongodb": "^6.9.0",
     "mongoose": "^8.7.2",
+    "ollama": "^0.5.10",
     "unique-names-generator": "^4.7.1"
   }
 }

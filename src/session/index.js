@@ -21,6 +21,7 @@ class SessionManager {
       this.customRoles.set(role, new Set());
     }
     this.customRoles.get(role).add(userId);
+    console.log(`Assigned role ${role} to user ${userId}`);
   }
 
   hasRole(userId, role) {
@@ -97,10 +98,6 @@ class SessionManager {
     }
 
     this.availableChannels.delete(channelId);
-
-    // Log interaction object
-    console.log("Interaction object:", interaction);
-    console.log("Interaction user object:", interaction.user);
 
     if (!interaction.user || !interaction.user.id) {
       throw new Error("Interaction user or user ID is undefined");

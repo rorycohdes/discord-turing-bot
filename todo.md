@@ -10,3 +10,4 @@ I need my bot (not chat-bot) to send private dms when the test begins and after 
 I need to write code so that I can't join the test with the same username
 I also need to write code so that a warning is sent when you try to set the nickname of someone with a higher server privellege than you
 instructions in dm should explain what to do when you get in the channel
+First thing I want is for the channel to be told who the judge is by nickname

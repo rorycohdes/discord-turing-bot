@@ -75,6 +75,7 @@ class TuringTestManager {
         // Assign the "judge" role to the judge
         if (participant.role === "judge") {
           this.sessionManager.assignRole(participant.userId, "judge");
+          console.log(`Assigned judge role to user: ${participant.userId}`);
         }
 
         // Set channel permissions for the participant
